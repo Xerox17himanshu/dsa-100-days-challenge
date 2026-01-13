@@ -1,7 +1,7 @@
 // Configuration - Modify start date here!
 const CONFIG = {
-    startDate: '2026-01-15', // Start date (YYYY-MM-DD) - Change this to when you want to start
-    unlockTime: '07:00',      // 7:00 AM
+    startDate: '2026-01-13', // Start date (YYYY-MM-DD) - Change this to when you want to start
+    unlockTime: '22:40',      // 7:00 PM
     timezone: 'Asia/Kolkata'  // IST timezone
 };
 
