@@ -1,6 +1,6 @@
 // Configuration - Modify start date here!
 const CONFIG = {
-    startDate: '2026-02-01', // Start date (YYYY-MM-DD) - Change this to when you want to start
+    startDate: '2026-01-28', // Start date (YYYY-MM-DD) - Change this to when you want to start
     unlockTime: '07:00',      // 7:00 AM
     timezone: 'Asia/Kolkata'  // IST timezone
 };
@@ -145,6 +145,10 @@ function updateStats() {
     document.getElementById('totalDays').textContent = maxUnlocked;
     document.getElementById('completedDays').textContent = completed;
     document.getElementById('streakDays').textContent = streak;
+    
+    // Update progress box
+    document.getElementById('progressCompletedDays').textContent = completed;
+    document.getElementById('progressTotalDays').textContent = maxUnlocked;
     
     // Update progress bar
     const progressPercent = maxUnlocked > 0 ? (completed / maxUnlocked) * 100 : 0;
