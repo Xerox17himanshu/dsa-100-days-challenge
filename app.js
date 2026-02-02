@@ -1,6 +1,6 @@
 // Configuration - Modify start date here!
 const CONFIG = {
-    startDate: '2026-01-05', // Start date (YYYY-MM-DD) - Change this to when you want to start
+    startDate: '2026-02-01', // Start date (YYYY-MM-DD) - Change this to when you want to start
     unlockTime: '07:00',      // 7:00 AM
     timezone: 'Asia/Kolkata'  // IST timezone
 };
@@ -10,6 +10,10 @@ let challengeData = [];
 let currentFilter = 'all';
 let completedDays = [];
 let unlockedDays = 0;
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 // Calculate which day is currently unlocked
 function getUnlockedDay() {
@@ -58,10 +62,20 @@ function updateTimer() {
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const s = Math.floor((diff % (1000 * 60)) / 1000);
         
-        document.getElementById('timerDisplay').textContent = 
-            `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        const timeString = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        document.getElementById('timerDisplay').textContent = timeString;
+        
+        // Also update the countdown in unlock message card if it exists
+        const countdownEl = document.getElementById('nextUnlockCountdown');
+        if (countdownEl) {
+            countdownEl.textContent = timeString;
+        }
     } else {
         document.getElementById('timerDisplay').textContent = '00:00:00';
+        const countdownEl = document.getElementById('nextUnlockCountdown');
+        if (countdownEl) {
+            countdownEl.textContent = '00:00:00';
+        }
     }
 }
 
@@ -85,6 +99,10 @@ function calculateStreak() {
     return streak;
 }
 
+// ============================================================================
+// PROGRESS MANAGEMENT
+// ============================================================================
+
 // Load progress from localStorage
 function loadProgress() {
     const saved = localStorage.getItem('dsa-100-days-progress');
@@ -95,49 +113,299 @@ function loadProgress() {
             completedDays = [];
         }
     }
-    updateProgress();
 }
 
 // Save progress to localStorage
 function saveProgress() {
     localStorage.setItem('dsa-100-days-progress', JSON.stringify(completedDays));
-    updateProgress();
 }
 
-// Update all progress displays
-function updateProgress() {
-    unlockedDays = getUnlockedDay();
-    const percent = (completedDays.length / 100) * 100;
-    const streak = calculateStreak();
-    
-    document.getElementById('progressBar').style.width = percent + '%';
-    document.getElementById('progressCount').textContent = completedDays.length;
-    document.getElementById('unlockedCount').textContent = unlockedDays;
-    document.getElementById('completedCount').textContent = completedDays.length;
-    document.getElementById('streakCount').textContent = streak;
-}
-
-// Toggle day completion
+// Toggle complete status
 function toggleComplete(day) {
-    const index = completedDays.indexOf(day);
-    if (index > -1) {
-        completedDays.splice(index, 1);
+    if (completedDays.includes(day)) {
+        completedDays = completedDays.filter(d => d !== day);
     } else {
         completedDays.push(day);
     }
     saveProgress();
+    updateStats();
     renderDays();
 }
 
-// Filter by unit
-function filterByUnit(unit) {
-    currentFilter = unit;
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
+// ============================================================================
+// STATS & DISPLAY
+// ============================================================================
+
+// Update statistics display
+function updateStats() {
+    const maxUnlocked = getUnlockedDay();
+    const completed = completedDays.length;
+    const streak = calculateStreak();
+    
+    document.getElementById('totalDays').textContent = maxUnlocked;
+    document.getElementById('completedDays').textContent = completed;
+    document.getElementById('streakDays').textContent = streak;
+    
+    // Update progress bar
+    const progressPercent = maxUnlocked > 0 ? (completed / maxUnlocked) * 100 : 0;
+    document.getElementById('progressFill').style.width = progressPercent + '%';
+}
+
+// ============================================================================
+// FILTERING & SEARCH
+// ============================================================================
+
+// Set current filter
+function setFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[onclick="setFilter('${filter}')"]`).classList.add('active');
     renderDays();
 }
+
+// Search functionality
+function searchDays() {
+    renderDays();
+}
+
+// ============================================================================
+// MODAL HANDLING
+// ============================================================================
+
+// Show problem description in modal
+function showDescription(day, questionNum) {
+    const dayData = challengeData.find(d => d.day === day);
+    if (!dayData) return;
+    
+    const modal = document.getElementById('problemModal');
+    const title = document.getElementById('modalTitle');
+    const description = document.getElementById('modalDescription');
+    
+    title.textContent = `Day ${day} - Question ${questionNum}: ${dayData.question1.title}`;
+    description.innerHTML = `<pre>${dayData.question1.description}</pre>`;
+    
+    modal.style.display = 'block';
+}
+
+// Close modal
+function closeModal() {
+    document.getElementById('problemModal').style.display = 'none';
+}
+
+// Close modal on outside click
+window.onclick = function(event) {
+    const modal = document.getElementById('problemModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+
+// ============================================================================
+// SOLUTIONS HANDLING
+// ============================================================================
+
+// Toggle solutions dropdown
+function toggleSolutions(dayNum) {
+    const content = document.getElementById(`solutions-content-${dayNum}`);
+    const chevron = document.getElementById(`chevron-${dayNum}`);
+    
+    if (content.classList.contains('open')) {
+        content.classList.remove('open');
+        chevron.style.transform = 'rotate(0deg)';
+    } else {
+        content.classList.add('open');
+        chevron.style.transform = 'rotate(180deg)';
+    }
+}
+
+// Toggle tutorial sections
+function toggleTutorial(dayNum, questionNum) {
+    const content = document.getElementById(`tutorial-${dayNum}-q${questionNum}`);
+    const chevron = document.getElementById(`tutorial-chevron-${dayNum}-q${questionNum}`);
+    
+    if (content.classList.contains('open')) {
+        content.classList.remove('open');
+        chevron.style.transform = 'rotate(0deg)';
+    } else {
+        content.classList.add('open');
+        chevron.style.transform = 'rotate(180deg)';
+    }
+}
+
+// Render tutorial section
+function renderTutorial(dayNum, questionNum, tutorial) {
+    if (!tutorial) return '';
+    
+    return `
+        <div class="tutorial-section">
+            <button class="tutorial-toggle" onclick="toggleTutorial(${dayNum}, ${questionNum})">
+                <div class="tutorial-toggle-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                    <span>📚 View Complete Tutorial</span>
+                </div>
+                <svg id="tutorial-chevron-${dayNum}-q${questionNum}" class="chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            <div id="tutorial-${dayNum}-q${questionNum}" class="tutorial-content">
+                <div class="tutorial-inner">
+                    ${tutorial.explanation ? `
+                        <div class="tutorial-block">
+                            <h4>💡 Logic Explanation</h4>
+                            <div class="tutorial-text">${tutorial.explanation.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${tutorial.code ? `
+                        <div class="tutorial-block">
+                            <h4>💻 Code Solution</h4>
+                            <pre class="code-block"><code>${tutorial.code}</code></pre>
+                        </div>
+                    ` : ''}
+                    
+                    ${tutorial.timeComplexity ? `
+                        <div class="tutorial-block">
+                            <h4>⏱️ Complexity Analysis</h4>
+                            <div class="complexity-info">
+                                <div class="complexity-item">
+                                    <strong>Time Complexity:</strong> <code>${tutorial.timeComplexity}</code>
+                                </div>
+                                ${tutorial.spaceComplexity ? `
+                                    <div class="complexity-item">
+                                        <strong>Space Complexity:</strong> <code>${tutorial.spaceComplexity}</code>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Render solutions section
+function renderSolutions(dayNum, maxUnlocked) {
+    const day = challengeData.find(d => d.day === dayNum);
+    if (!day || !day.solutions) return '';
+    
+    // Solutions unlock when the NEXT day unlocks
+    const solutionsUnlocked = dayNum < maxUnlocked;
+    
+    if (solutionsUnlocked) {
+        const q1Solutions = day.solutions.question1 || [];
+        const q1Tutorial = q1Solutions.find(sol => sol.type === 'tutorial');
+        const q1VideoSolutions = q1Solutions.filter(sol => sol.type === 'video');
+        
+        const q2Solutions = day.solutions.question2 || [];
+        const q2Tutorial = q2Solutions.find(sol => sol.type === 'tutorial');
+        const q2VideoSolutions = q2Solutions.filter(sol => sol.type === 'video');
+        
+        const hasAnySolutions = q1Solutions.length > 0 || q2Solutions.length > 0;
+        
+        return `
+            <div class="solutions-dropdown">
+                <button class="solutions-toggle" onclick="toggleSolutions(${dayNum})">
+                    <div class="solutions-toggle-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>✓ Solutions Available</span>
+                    </div>
+                    <svg id="chevron-${dayNum}" class="chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div id="solutions-content-${dayNum}" class="solutions-content">
+                    <div class="solutions-inner">
+                        ${q1Solutions.length > 0 ? `
+                            <div class="solution-group">
+                                <div class="solution-label">📘 Question 1 Solutions</div>
+                                
+                                ${q1Tutorial ? renderTutorial(dayNum, 1, q1Tutorial) : ''}
+                                
+                                ${q1VideoSolutions.length > 0 ? `
+                                    <div class="solution-links">
+                                        ${q1VideoSolutions.map(sol => `
+                                            <a href="${sol.link}" target="_blank" rel="noopener noreferrer" class="solution-link">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                                </svg>
+                                                ${sol.label}
+                                            </a>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+
+                        ${q2Solutions.length > 0 ? `
+                            <div class="solution-group">
+                                <div class="solution-label">🎯 Question 2 Solutions</div>
+                                
+                                ${q2VideoSolutions.length > 0 ? `
+                                    <div class="solution-links">
+                                        ${q2VideoSolutions.map(sol => `
+                                            <a href="${sol.link}" target="_blank" rel="noopener noreferrer" class="solution-link">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                                </svg>
+                                                ${sol.label}
+                                            </a>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                                
+                                ${q2Tutorial ? renderTutorial(dayNum, 2, q2Tutorial) : ''}
+                            </div>
+                        ` : ''}
+
+                        ${!hasAnySolutions ? `
+                            <div class="empty-message">Solutions will be added soon...</div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        // Get the next unlock date for Day N+1
+        const nextDay = dayNum + 1;
+        const nextUnlockDate = new Date(CONFIG.startDate);
+        nextUnlockDate.setDate(nextUnlockDate.getDate() + nextDay - 1);
+        const [hours, minutes] = CONFIG.unlockTime.split(':');
+        nextUnlockDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const dateStr = nextUnlockDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric'
+        });
+        
+        return `
+            <div class="solutions-dropdown">
+                <button class="solutions-toggle locked" disabled>
+                    <div class="solutions-toggle-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <span>🔒 Solutions unlock when Day ${nextDay} opens (${dateStr} at ${CONFIG.unlockTime})</span>
+                    </div>
+                </button>
+            </div>
+        `;
+    }
+}
+
+// ============================================================================
+// RENDERING
+// ============================================================================
 
 // Render all days
 function renderDays() {
@@ -150,17 +418,22 @@ function renderDays() {
         const matchesFilter = currentFilter === 'all' || day.unit === currentFilter;
         const matchesSearch = searchTerm === '' ||
             day.day.toString().includes(searchTerm) ||
-            day.question1.name.toLowerCase().includes(searchTerm) ||
+            day.question1.title.toLowerCase().includes(searchTerm) ||
             day.question2.name.toLowerCase().includes(searchTerm) ||
             day.topics.some(t => t.toLowerCase().includes(searchTerm));
         return matchesFilter && matchesSearch;
     });
 
-    // Render day cards
-    grid.innerHTML = filtered.map(day => {
+    // Render day cards (hide locked ones)
+    let cardsHTML = filtered.map(day => {
         const isCompleted = completedDays.includes(day.day);
         const isLocked = day.day > maxUnlocked;
         const isToday = day.day === maxUnlocked && maxUnlocked > 0;
+        
+        // Hide locked cards completely
+        if (isLocked) {
+            return '';
+        }
         
         let statusBadge = '';
         if (isToday && !isLocked) {
@@ -170,7 +443,7 @@ function renderDays() {
         }
         
         return `
-            <div class="day-card ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''} ${isToday ? 'today' : ''}">
+            <div class="day-card ${isCompleted ? 'completed' : ''} ${isToday ? 'today' : ''}">
                 ${statusBadge}
                 <div class="day-header">
                     <div class="day-number">Day ${day.day}</div>
@@ -183,86 +456,121 @@ function renderDays() {
                 
                 <div class="question">
                     <div class="question-header">
-                        <span class="question-num">Question 1</span>
-                        <span class="difficulty ${day.question1.difficulty.toLowerCase()}">${day.question1.difficulty}</span>
+                        <span class="question-num">Question 1 - C Programming</span>
+                        <span class="difficulty easy">Practice</span>
                     </div>
-                    <div class="question-name">${day.question1.name}</div>
-                    ${!isLocked ? `<a href="${day.question1.link}" target="_blank" rel="noopener noreferrer" class="solve-btn">Solve Problem →</a>` : ''}
+                    <div class="question-name">${day.question1.title}</div>
+                    <button class="solve-btn" onclick="showDescription(${day.day}, 1)">View Problem →</button>
                 </div>
                 
                 <div class="question">
                     <div class="question-header">
-                        <span class="question-num">Question 2</span>
+                        <span class="question-num">Question 2 - ${day.question2.link.includes('leetcode') ? 'LeetCode' : 'GeeksforGeeks'}</span>
                         <span class="difficulty ${day.question2.difficulty.toLowerCase()}">${day.question2.difficulty}</span>
                     </div>
                     <div class="question-name">${day.question2.name}</div>
-                    ${!isLocked ? `<a href="${day.question2.link}" target="_blank" rel="noopener noreferrer" class="solve-btn">Solve Problem →</a>` : ''}
+                    <a href="${day.question2.link}" target="_blank" rel="noopener noreferrer" class="solve-btn">Solve Problem →</a>
                 </div>
                 
-                ${!isLocked ? `
                 <div class="complete-btn ${isCompleted ? 'completed' : ''}" onclick="toggleComplete(${day.day})">
-                    ${isCompleted ? '✓ Completed' : 'Mark as Complete'}
+                    ${isCompleted ? `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>Completed</span>
+                    ` : `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                        </svg>
+                        <span>Mark as Complete</span>
+                    `}
                 </div>
-                ` : ''}
+                
+                <!-- Solutions Dropdown -->
+                ${renderSolutions(day.day, maxUnlocked)}
             </div>
         `;
     }).join('');
-}
-
-// Initialize application
-async function init() {
-    console.log('🚀 Initializing 100 Days of DSA Challenge...');
     
-    // Load challenge data
-    try {
-        const response = await fetch('challenge_syllabus_aligned.json');
-        if (!response.ok) {
-            throw new Error('Failed to load challenge data');
-        }
-        challengeData = await response.json();
-        console.log(`✅ Loaded ${challengeData.length} days of challenges`);
-    } catch (error) {
-        console.error('❌ Error loading challenge data:', error);
-        document.getElementById('daysGrid').innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #ec4899;">
-                <h3>⚠️ Error Loading Challenge Data</h3>
-                <p>Please make sure challenge_syllabus_aligned.json is in the same directory.</p>
+    // Add next unlock message card if not all days are unlocked
+    if (maxUnlocked < 100) {
+        const nextDay = maxUnlocked + 1;
+        const nextUnlockDate = new Date(CONFIG.startDate);
+        nextUnlockDate.setDate(nextUnlockDate.getDate() + nextDay - 1);
+        const [hours, minutes] = CONFIG.unlockTime.split(':');
+        nextUnlockDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const dateStr = nextUnlockDate.toLocaleDateString('en-US', { 
+            weekday: 'long',
+            month: 'long', 
+            day: 'numeric',
+            year: 'numeric'
+        });
+        
+        cardsHTML += `
+            <div class="unlock-message-card">
+                <div class="unlock-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </div>
+                <div class="unlock-message-title">🔒 Day ${nextDay} Locked</div>
+                <div class="unlock-message-text">
+                    Next challenge unlocks on<br>
+                    <strong>${dateStr}</strong><br>
+                    at <strong>${CONFIG.unlockTime} ${CONFIG.timezone}</strong>
+                </div>
+                <div class="unlock-countdown" id="nextUnlockCountdown">
+                    Loading...
+                </div>
             </div>
         `;
-        return;
     }
     
-    // Load user progress
-    loadProgress();
-    
-    // Initial render
-    renderDays();
-    updateTimer();
-    
-    // Setup search
-    document.getElementById('searchBox').addEventListener('input', renderDays);
-    
-    // Update timer every second
-    setInterval(updateTimer, 1000);
-    
-    // Check for new unlocked day every minute
-    setInterval(() => {
-        const newUnlocked = getUnlockedDay();
-        if (newUnlocked !== unlockedDays) {
-            console.log(`🔓 New day unlocked: Day ${newUnlocked}`);
-            renderDays();
-        }
-    }, 60000);
-    
-    console.log('✨ Challenge initialized successfully!');
-    console.log(`📅 Start Date: ${CONFIG.startDate}`);
-    console.log(`🕐 Daily Unlock Time: ${CONFIG.unlockTime} ${CONFIG.timezone}`);
-    console.log(`🔓 Currently Unlocked: Day ${getUnlockedDay()}`);
+    grid.innerHTML = cardsHTML;
 }
 
-// Start when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+// Initialize the app
+async function init() {
+    try {
+        // Load challenge data
+        const response = await fetch('challenge_syllabus_aligned.json');
+        challengeData = await response.json();
+        
+        // Load saved progress
+        loadProgress();
+        
+        // Update display
+        unlockedDays = getUnlockedDay();
+        updateStats();
+        renderDays();
+        
+        // Start timer
+        updateTimer();
+        setInterval(updateTimer, 1000);
+        
+        // Check for new unlocks every minute
+        setInterval(() => {
+            const newUnlocked = getUnlockedDay();
+            if (newUnlocked !== unlockedDays) {
+                unlockedDays = newUnlocked;
+                updateStats();
+                renderDays();
+            }
+        }, 60000);
+        
+    } catch (error) {
+        console.error('Error loading challenge data:', error);
+        document.getElementById('daysGrid').innerHTML = 
+            '<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading challenge data. Please refresh the page.</div>';
+    }
 }
+
+// Start the app when page loads
+window.addEventListener('DOMContentLoaded', init);
