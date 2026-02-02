@@ -25,20 +25,21 @@ function getUnlockedDay() {
         return 0;
     }
     
-    // Calculate days elapsed since start
+    // Calculate days elapsed since start (including partial days)
     const diffTime = now - start;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
-    // Check if we've passed today's unlock time
-    const todayUnlock = new Date();
-    const [hours, minutes] = CONFIG.unlockTime.split(':');
-    todayUnlock.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    // Calculate the unlock time for the current day being checked
+    const nextDayUnlock = new Date(start);
+    nextDayUnlock.setDate(nextDayUnlock.getDate() + diffDays);
+    nextDayUnlock.setHours(parseInt(CONFIG.unlockTime.split(':')[0]), parseInt(CONFIG.unlockTime.split(':')[1]), 0, 0);
     
-    if (now >= todayUnlock) {
+    // If current time has passed the unlock time for this day, we're on the next day
+    if (now >= nextDayUnlock) {
         return Math.min(diffDays + 1, 100);
     }
     
-    return Math.min(Math.max(0, diffDays), 100);
+    return Math.min(diffDays, 100);
 }
 
 // Update countdown timer to next unlock
